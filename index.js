@@ -1,11 +1,35 @@
 require("dotenv").config();
 const { Telegraf } = require("telegraf");
-const bot = new Telegraf(process.env.TOKEN);
+const TOKEN = process.env.TOKEN;
+const bot = new Telegraf(TOKEN);
+const axios = require("axios");
+const { getText, getTextFast } = require("./utils/tesseract");
 
 // Error Handling
 bot.catch((err, ctx) => {
     console.log(err);
     return ctx.reply("Something wrong !", { parse_mode: "HTML" });
+});
+
+bot.use(async (ctx, next) => {
+    try {
+        if (ctx.message.photo) {
+            const fileId =
+                ctx.message.photo[ctx.message.photo.length - 1].file_id;
+            const response = await axios.get(
+                `https://api.telegram.org/bot${TOKEN}/getFile?file_id=${fileId}`
+            );
+            const filePath = await response.data.result.file_path;
+            const photoUrl = `https://api.telegram.org/file/bot${TOKEN}/${filePath}`;
+            const text = await getText("eng", photoUrl);
+            ctx.reply(text);
+        } else {
+            next();
+        }
+    } catch (error) {
+        console.log(error);
+        ctx.reply("something wrong");
+    }
 });
 
 // Public
@@ -28,8 +52,7 @@ bot.help((ctx) => {
     const messageId = ctx.message.message_id;
     ctx.reply(
         `<b>List of commands available:</b>\n        
-/start - To start the bot        
-/usage - To get your usage info     
+/start - To start the bot     
 /help - To show this message        
 /contact - To get contact of the developer`,
         {
@@ -46,5 +69,7 @@ bot.command("contact", (ctx) => {
         { parse_mode: "HTML" }
     );
 });
+
+bot.command("usage", (ctx) => {});
 
 module.exports = bot;
