@@ -39,4 +39,12 @@ bot.help((ctx) => {
     );
 });
 
+bot.command("contact", (ctx) => {
+    ctx.reply(
+        `Hey! You can find me on 
+ <a href = "https://telegram.me/muzaffarovadham">Telegram</a>`,
+        { parse_mode: "HTML" }
+    );
+});
+
 module.exports = bot;
