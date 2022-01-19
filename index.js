@@ -27,7 +27,8 @@ const steps = new Scenes.WizardScene(
         ctx.deleteMessage();
         ctx.reply(`Extracting text please wait ...`);
         const text = await getText(language, image);
-        ctx.reply(`<b>Here is extracted Text:</b> \n\n ${text}`, {
+        console.log(text);
+        await ctx.reply(`<b>Here is extracted Text:</b> \n\n ${text}`, {
             parse_mode: "HTML",
             reply_to_message_id: messageId,
         });
@@ -41,24 +42,8 @@ bot.use(stage.middleware());
 
 // Error Handling
 bot.catch((err, ctx) => {
-    console.log(err);
     return ctx.reply("Something wrong !", { parse_mode: "HTML" });
 });
-
-// bot.use(async (ctx, next) => {
-//     try {
-//         if (ctx.message.photo) {
-
-//             const text = await getText("eng", imgUrl(ctx, TOKEN));
-//             ctx.reply(text);
-//         } else {
-//             next();
-//         }
-//     } catch (error) {
-//         console.log(error);
-//         ctx.reply("something wrong");
-//     }
-// });
 
 // Public
 bot.start((ctx) => {
