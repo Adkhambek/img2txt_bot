@@ -1,9 +1,43 @@
 require("dotenv").config();
-const { Telegraf } = require("telegraf");
+const { Telegraf, Markup, Scenes, session } = require("telegraf");
 const TOKEN = process.env.TOKEN;
 const bot = new Telegraf(TOKEN);
-const axios = require("axios");
-const { getText, getTextFast } = require("./utils/tesseract");
+const { getText } = require("./utils/tesseract");
+const imgUrl = require("./utils/imgUrl");
+const steps = new Scenes.WizardScene(
+    "STEPS",
+    async (ctx) => {
+        ctx.wizard.state.image = imgUrl(ctx, TOKEN);
+        ctx.wizard.state.messageId = ctx.message.message_id;
+        ctx.reply(
+            "Please Select desired langauge:",
+            Markup.inlineKeyboard([
+                Markup.button.callback("English", "eng"),
+                Markup.button.callback("Uzbek", "uzb"),
+                Markup.button.callback("Russian", "rus"),
+            ])
+        );
+        return ctx.wizard.next();
+    },
+    async (ctx) => {
+        const language = (ctx.wizard.state.langauge =
+            ctx.update.callback_query.data);
+        const image = await ctx.wizard.state.image;
+        const messageId = ctx.wizard.state.messageId;
+        ctx.deleteMessage();
+        ctx.reply(`Extracting text please wait ...`);
+        const text = await getText(language, image);
+        ctx.reply(`<b>Here is extracted Text:</b> \n\n ${text}`, {
+            parse_mode: "HTML",
+            reply_to_message_id: messageId,
+        });
+        return ctx.scene.leave();
+    }
+);
+
+const stage = new Scenes.Stage([steps]);
+bot.use(session());
+bot.use(stage.middleware());
 
 // Error Handling
 bot.catch((err, ctx) => {
@@ -11,26 +45,20 @@ bot.catch((err, ctx) => {
     return ctx.reply("Something wrong !", { parse_mode: "HTML" });
 });
 
-bot.use(async (ctx, next) => {
-    try {
-        if (ctx.message.photo) {
-            const fileId =
-                ctx.message.photo[ctx.message.photo.length - 1].file_id;
-            const response = await axios.get(
-                `https://api.telegram.org/bot${TOKEN}/getFile?file_id=${fileId}`
-            );
-            const filePath = await response.data.result.file_path;
-            const photoUrl = `https://api.telegram.org/file/bot${TOKEN}/${filePath}`;
-            const text = await getText("eng", photoUrl);
-            ctx.reply(text);
-        } else {
-            next();
-        }
-    } catch (error) {
-        console.log(error);
-        ctx.reply("something wrong");
-    }
-});
+// bot.use(async (ctx, next) => {
+//     try {
+//         if (ctx.message.photo) {
+
+//             const text = await getText("eng", imgUrl(ctx, TOKEN));
+//             ctx.reply(text);
+//         } else {
+//             next();
+//         }
+//     } catch (error) {
+//         console.log(error);
+//         ctx.reply("something wrong");
+//     }
+// });
 
 // Public
 bot.start((ctx) => {
@@ -41,35 +69,13 @@ bot.start((ctx) => {
 
 I am an Optical Character Recognizer Bot 🤖. 
 
-Just send a clear image 🖼️ and I will recognize the text in the image and send it as a message!
-
-Get the list of commands by /help`,
+Just send a clear image 🖼️ and I will recognize the text in the image and send it as a message!`,
         { reply_to_message_id: messageId }
     );
 });
 
-bot.help((ctx) => {
-    const messageId = ctx.message.message_id;
-    ctx.reply(
-        `<b>List of commands available:</b>\n        
-/start - To start the bot     
-/help - To show this message        
-/contact - To get contact of the developer`,
-        {
-            parse_mode: "HTML",
-            reply_to_message_id: messageId,
-        }
-    );
+bot.on("photo", (ctx) => {
+    ctx.scene.enter("STEPS");
 });
-
-bot.command("contact", (ctx) => {
-    ctx.reply(
-        `Hey! You can find me on 
- <a href = "https://telegram.me/muzaffarovadham">Telegram</a>`,
-        { parse_mode: "HTML" }
-    );
-});
-
-bot.command("usage", (ctx) => {});
 
 module.exports = bot;
